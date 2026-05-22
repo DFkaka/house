@@ -1,6 +1,6 @@
 package com.example.house.ui.navigation
 
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -36,7 +36,7 @@ fun HouseNavGraph(container: AppContainer) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    Column {
+    Column(Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = Screen.Rooms.route,
