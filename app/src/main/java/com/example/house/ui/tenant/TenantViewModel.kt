@@ -4,17 +4,18 @@ package com.example.house.ui.tenant
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.house.data.local.entity.RoomStatus
-import com.example.house.data.local.entity.TenantEntity
+import com.example.house.data.local.model.Tenant
 import com.example.house.data.repository.RoomRepository
 import com.example.house.data.repository.TenantRepository
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class TenantListState(
-    val tenants: List<TenantEntity> = emptyList(),
-    val isLoading: Boolean = true,
-    val searchQuery: String = ""
+    val tenants: List<Tenant> = emptyList(),
+    val isLoading: Boolean = true
 )
 
 class TenantViewModel(
@@ -25,32 +26,21 @@ class TenantViewModel(
     private val _state = MutableStateFlow(TenantListState())
     val state: StateFlow<TenantListState> = _state.asStateFlow()
 
-    private val _searchQuery = MutableStateFlow("")
+    init { loadTenants() }
 
-    init {
-        viewModelScope.launch {
-            _searchQuery
-                .flatMapLatest { query ->
-                    if (query.isNotBlank()) tenantRepo.searchTenants(query)
-                    else tenantRepo.allTenants
-                }
-                .collect { tenants ->
-                    _state.value = TenantListState(tenants = tenants, isLoading = false)
-                }
+    fun loadTenants(query: String = "") {
+        viewModelScope.launch(Dispatchers.IO) {
+            val tenants = if (query.isNotBlank()) tenantRepo.search(query) else tenantRepo.getAll()
+            _state.value = TenantListState(tenants = tenants, isLoading = false)
         }
     }
 
-    fun onSearch(query: String) {
-        _searchQuery.value = query
-        _state.value = _state.value.copy(searchQuery = query)
-    }
-
-    fun addTenant(tenant: TenantEntity, onResult: (Boolean) -> Unit) {
-        viewModelScope.launch {
+    fun addTenant(tenant: Tenant, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                tenantRepo.insertTenant(tenant)
-                // Update room status to OCCUPIED
-                roomRepo.updateTenantAndStatus(tenant.roomId, tenant.tenantId, RoomStatus.OCCUPIED)
+                tenantRepo.insert(tenant)
+                roomRepo.updateTenantAndStatus(tenant.roomId, tenant.tenantId, "OCCUPIED")
+                loadTenants()
                 onResult(true)
             } catch (e: Exception) {
                 onResult(false)
@@ -58,11 +48,12 @@ class TenantViewModel(
         }
     }
 
-    fun checkoutTenant(tenant: TenantEntity, checkoutDate: String, onResult: (Boolean) -> Unit) {
-        viewModelScope.launch {
+    fun checkoutTenant(tenant: Tenant, checkoutDate: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                tenantRepo.checkoutTenant(tenant.tenantId, checkoutDate)
-                roomRepo.updateTenantAndStatus(tenant.roomId, null, RoomStatus.VACANT)
+                tenantRepo.checkout(tenant.tenantId, checkoutDate)
+                roomRepo.updateTenantAndStatus(tenant.roomId, null, "VACANT")
+                loadTenants()
                 onResult(true)
             } catch (e: Exception) {
                 onResult(false)

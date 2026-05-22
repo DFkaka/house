@@ -1,3 +1,4 @@
+
 package com.example.house.ui.navigation
 
 import androidx.compose.foundation.layout.*
@@ -37,58 +38,23 @@ fun HouseNavGraph(container: AppContainer) {
     val currentRoute = navBackStackEntry?.destination?.route
 
     Column(Modifier.fillMaxSize()) {
-        NavHost(
-            navController = navController,
-            startDestination = "debug",
-            modifier = Modifier.weight(1f)
-        ) {
-            composable("debug") {
-                DebugScreen()
-            }
-            composable(Screen.Rooms.route) {
-                RoomListScreen(
-                    container = container,
-                    onRoomClick = { roomId -> navController.navigate("room_detail/$roomId") }
-                )
-            }
-            composable(Screen.Meter.route) {
-                MeterReadingScreen(container)
-            }
-            composable(Screen.Settlement.route) {
-                SettlementScreen(container)
-            }
-            composable(Screen.Tenants.route) {
-                TenantListScreen(container)
-            }
-            composable(Screen.Stats.route) {
-                StatisticsScreen(container)
-            }
-            composable(
-                "room_detail/{roomId}",
-                arguments = listOf(navArgument("roomId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val roomId = backStackEntry.arguments?.getLong("roomId") ?: 0L
-                RoomDetailScreen(
-                    roomId = roomId,
-                    container = container,
-                    onBack = { navController.popBackStack() }
-                )
+        NavHost(navController = navController, startDestination = Screen.Rooms.route, modifier = Modifier.weight(1f)) {
+            composable(Screen.Rooms.route) { RoomListScreen(container = container, onRoomClick = { navController.navigate("room_detail/$it") }) }
+            composable(Screen.Meter.route) { MeterReadingScreen(container) }
+            composable(Screen.Settlement.route) { SettlementScreen(container) }
+            composable(Screen.Tenants.route) { TenantListScreen(container) }
+            composable(Screen.Stats.route) { StatisticsScreen(container) }
+            composable("room_detail/{roomId}", arguments = listOf(navArgument("roomId") { type = NavType.LongType })) { entry ->
+                RoomDetailScreen(roomId = entry.arguments?.getLong("roomId") ?: 0L, container = container, onBack = { navController.popBackStack() })
             }
         }
-
         NavigationBar {
             items.forEach { screen ->
                 NavigationBarItem(
                     icon = { Icon(screen.icon, screen.label) },
                     label = { Text(screen.label) },
                     selected = currentRoute == screen.route,
-                    onClick = {
-                        navController.navigate(screen.route) {
-                            popUpTo(Screen.Rooms.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
+                    onClick = { navController.navigate(screen.route) { popUpTo(Screen.Rooms.route) { saveState = true }; launchSingleTop = true; restoreState = true } }
                 )
             }
         }

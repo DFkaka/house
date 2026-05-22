@@ -1,26 +1,77 @@
 
 package com.example.house.data.repository
 
-import com.example.house.data.local.dao.TenantDao
-import com.example.house.data.local.entity.TenantEntity
-import kotlinx.coroutines.flow.Flow
+import android.content.ContentValues
+import android.content.Context
+import com.example.house.data.local.model.Tenant
 
-class TenantRepository(private val tenantDao: TenantDao) {
-    val allTenants: Flow<List<TenantEntity>> = tenantDao.getAllTenants()
+class TenantRepository(context: Context) : BaseRepository(context) {
 
-    suspend fun getTenantById(id: Long): TenantEntity? = tenantDao.getTenantById(id)
+    fun getAll(): List<Tenant> {
+        val list = mutableListOf<Tenant>()
+        db.rawQuery("SELECT * FROM tenants ORDER BY checkInDate DESC", null).use { c ->
+            while (c.moveToNext()) list.add(mapTenant(c))
+        }
+        return list
+    }
 
-    suspend fun getActiveTenantByRoom(roomId: Long): TenantEntity? = tenantDao.getActiveTenantByRoom(roomId)
+    fun getById(id: Long): Tenant? {
+        db.rawQuery("SELECT * FROM tenants WHERE tenantId=?", arrayOf(id.toString())).use { c ->
+            if (c.moveToFirst()) return mapTenant(c)
+        }
+        return null
+    }
 
-    fun getTenantsByRoom(roomId: Long): Flow<List<TenantEntity>> = tenantDao.getTenantsByRoom(roomId)
+    fun getActiveByRoom(roomId: Long): Tenant? {
+        db.rawQuery("SELECT * FROM tenants WHERE roomId=? AND checkOutDate IS NULL LIMIT 1",
+            arrayOf(roomId.toString())).use { c ->
+            if (c.moveToFirst()) return mapTenant(c)
+        }
+        return null
+    }
 
-    fun searchTenants(query: String): Flow<List<TenantEntity>> = tenantDao.searchTenants(query)
+    fun getByRoom(roomId: Long): List<Tenant> {
+        val list = mutableListOf<Tenant>()
+        db.rawQuery("SELECT * FROM tenants WHERE roomId=? ORDER BY checkInDate DESC",
+            arrayOf(roomId.toString())).use { c ->
+            while (c.moveToNext()) list.add(mapTenant(c))
+        }
+        return list
+    }
 
-    suspend fun insertTenant(tenant: TenantEntity): Long = tenantDao.insertTenant(tenant)
+    fun search(query: String): List<Tenant> {
+        val list = mutableListOf<Tenant>()
+        db.rawQuery("SELECT * FROM tenants WHERE name LIKE ? OR phone LIKE ? ORDER BY checkInDate DESC",
+            arrayOf("%$query%", "%$query%")).use { c ->
+            while (c.moveToNext()) list.add(mapTenant(c))
+        }
+        return list
+    }
 
-    suspend fun updateTenant(tenant: TenantEntity) = tenantDao.updateTenant(tenant)
+    fun insert(tenant: Tenant): Long {
+        val cv = ContentValues().apply {
+            put("name", tenant.name)
+            put("phone", tenant.phone)
+            tenant.idCard?.let { put("idCard", it) }
+            put("roomId", tenant.roomId)
+            put("checkInDate", tenant.checkInDate)
+        }
+        return db.insert("tenants", null, cv)
+    }
 
-    suspend fun deleteTenant(tenant: TenantEntity) = tenantDao.deleteTenant(tenant)
+    fun checkout(tenantId: Long, date: String) {
+        val cv = ContentValues().apply { put("checkOutDate", date) }
+        db.update("tenants", cv, "tenantId=?", arrayOf(tenantId.toString()))
+    }
 
-    suspend fun checkoutTenant(tenantId: Long, date: String) = tenantDao.checkoutTenant(tenantId, date)
+    private fun mapTenant(c: android.database.Cursor): Tenant = Tenant(
+        tenantId = c.getLong("tenantId"),
+        name = c.getString("name") ?: "",
+        phone = c.getString("phone") ?: "",
+        idCard = c.getString("idCard"),
+        roomId = c.getLong("roomId"),
+        checkInDate = c.getString("checkInDate") ?: "",
+        checkOutDate = c.getString("checkOutDate"),
+        notes = c.getString("notes")
+    )
 }

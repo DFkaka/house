@@ -4,19 +4,21 @@ package com.example.house.ui.meter
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.house.data.local.entity.MeterReadingEntity
-import com.example.house.data.local.entity.RoomEntity
+import com.example.house.data.local.model.MeterReading
+import com.example.house.data.local.model.Room
 import com.example.house.data.repository.MeterReadingRepository
 import com.example.house.data.repository.RoomRepository
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 data class MeterReadingState(
-    val readings: List<MeterReadingEntity> = emptyList(),
-    val rooms: List<RoomEntity> = emptyList(),
-    val selectedRoomId: Long? = null,
+    val readings: List<MeterReading> = emptyList(),
+    val rooms: List<Room> = emptyList(),
     val isLoading: Boolean = true
 )
 
@@ -28,63 +30,22 @@ class MeterReadingViewModel(
     private val _state = MutableStateFlow(MeterReadingState())
     val state: StateFlow<MeterReadingState> = _state.asStateFlow()
 
-    private val _selectedRoomId = MutableStateFlow<Long?>(null)
+    init { load() }
 
-    init {
-        viewModelScope.launch {
-            roomRepo.allRooms.collect { rooms ->
-                _state.value = _state.value.copy(rooms = rooms)
-            }
-        }
-        viewModelScope.launch {
-            _selectedRoomId.flatMapLatest { roomId ->
-                if (roomId != null) meterRepo.getReadingsByRoom(roomId)
-                else meterRepo.getAllReadings()
-            }.collect { readings ->
-                _state.value = _state.value.copy(readings = readings, isLoading = false)
-            }
+    fun load(roomId: Long? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val rooms = roomRepo.getAll()
+            val readings = if (roomId != null) meterRepo.getByRoom(roomId) else meterRepo.getAll()
+            _state.value = MeterReadingState(readings = readings, rooms = rooms, isLoading = false)
         }
     }
 
-    fun selectRoom(roomId: Long?) {
-        _selectedRoomId.value = roomId
-        _state.value = _state.value.copy(selectedRoomId = roomId)
-    }
-
-    fun addReading(roomId: Long, waterReading: Double, electricReading: Double, onResult: (Boolean) -> Unit) {
-        viewModelScope.launch {
+    fun addReading(roomId: Long, water: Double, electric: Double, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-                val reading = MeterReadingEntity(
-                    roomId = roomId,
-                    recordDate = today,
-                    waterReading = waterReading,
-                    electricReading = electricReading
-                )
-                meterRepo.insertReading(reading)
-                onResult(true)
-            } catch (e: Exception) {
-                onResult(false)
-            }
-        }
-    }
-
-    fun batchAddReadings(
-        items: List<Triple<Long, Double, Double>>,
-        onResult: (Boolean) -> Unit
-    ) {
-        viewModelScope.launch {
-            try {
-                val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-                val readings = items.map { (roomId, water, electric) ->
-                    MeterReadingEntity(
-                        roomId = roomId,
-                        recordDate = today,
-                        waterReading = water,
-                        electricReading = electric
-                    )
-                }
-                meterRepo.insertReadings(readings)
+                meterRepo.insert(MeterReading(roomId = roomId, recordDate = today, waterReading = water, electricReading = electric))
+                load()
                 onResult(true)
             } catch (e: Exception) {
                 onResult(false)

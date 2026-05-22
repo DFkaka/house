@@ -1,7 +1,9 @@
+
 package com.example.house.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
 private val LightColorScheme = lightColorScheme(
@@ -18,13 +20,10 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun HouseUtilityTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
+fun HouseUtilityTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (darkTheme) LightColorScheme else LightColorScheme,
-        typography = Typography,
+        colorScheme = LightColorScheme,
+        typography = Typography(),
         content = content
     )
 }
