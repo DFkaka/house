@@ -28,8 +28,7 @@ import java.text.DecimalFormat
 @Composable
 fun RoomListScreen(
     container: AppContainer,
-    onRoomClick: (Long) -> Unit,
-    onAddRoom: () -> Unit
+    onRoomClick: (Long) -> Unit
 ) {
     val vm: RoomViewModel = viewModel(
         factory = RoomViewModel.Factory(container.roomRepository, container.tenantRepository)

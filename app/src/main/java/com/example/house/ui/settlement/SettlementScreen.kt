@@ -1,4 +1,3 @@
-
 package com.example.house.ui.settlement
 
 import androidx.compose.foundation.layout.*
@@ -20,6 +19,7 @@ import com.example.house.data.local.entity.SettlementEntity
 import com.example.house.di.AppContainer
 import com.example.house.ui.theme.*
 import java.text.DecimalFormat
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,7 +34,8 @@ fun SettlementScreen(container: AppContainer) {
     )
     val state by vm.state.collectAsState()
     val fmt = DecimalFormat("#0.00")
-    var showSnackbar by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -45,7 +46,8 @@ fun SettlementScreen(container: AppContainer) {
                     titleContentColor = Color.White
                 )
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -234,7 +236,11 @@ fun SettlementScreen(container: AppContainer) {
                                 Button(
                                     onClick = {
                                         vm.confirmSettlement { success ->
-                                            showSnackbar = if (success) "结算成功!" else "结算失败"
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar(
+                                                    if (success) "结算成功!" else "结算失败"
+                                                )
+                                            }
                                         }
                                     },
                                     modifier = Modifier.fillMaxWidth(),
@@ -257,13 +263,6 @@ fun SettlementScreen(container: AppContainer) {
                     SettlementHistoryCard(settlement, fmt)
                 }
             }
-        }
-    }
-
-    showSnackbar?.let { msg ->
-        LaunchedEffect(msg) {
-            kotlinx.coroutines.delay(2000)
-            showSnackbar = null
         }
     }
 }

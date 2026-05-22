@@ -112,7 +112,6 @@ class SettlementViewModel(
 
     fun calculate() {
         val s = _state.value
-        val prev = s.previousSettlement
         val room = s.selectedRoom ?: return
 
         val currWater = s.currentWaterReading.toDoubleOrNull() ?: return

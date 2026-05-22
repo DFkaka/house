@@ -1,7 +1,6 @@
-
 package com.example.house.ui.navigation
 
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -30,46 +29,23 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object Stats : Screen("stats", "统计", Icons.Default.BarChart)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HouseNavGraph(container: AppContainer) {
     val navController = rememberNavController()
     val items = listOf(Screen.Rooms, Screen.Meter, Screen.Settlement, Screen.Tenants, Screen.Stats)
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
-    Scaffold(
-        bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
-                items.forEach { screen ->
-                    NavigationBarItem(
-                        icon = { Icon(screen.icon, screen.label) },
-                        label = { Text(screen.label) },
-                        selected = currentRoute == screen.route,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(Screen.Rooms.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    )
-                }
-            }
-        }
-    ) { innerPadding ->
+    Column {
         NavHost(
             navController = navController,
             startDestination = Screen.Rooms.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.weight(1f)
         ) {
             composable(Screen.Rooms.route) {
                 RoomListScreen(
                     container = container,
-                    onRoomClick = { roomId ->
-                        navController.navigate("room_detail/$roomId")
-                    },
-                    onAddRoom = {}
+                    onRoomClick = { roomId -> navController.navigate("room_detail/$roomId") }
                 )
             }
             composable(Screen.Meter.route) {
@@ -93,6 +69,23 @@ fun HouseNavGraph(container: AppContainer) {
                     roomId = roomId,
                     container = container,
                     onBack = { navController.popBackStack() }
+                )
+            }
+        }
+
+        NavigationBar {
+            items.forEach { screen ->
+                NavigationBarItem(
+                    icon = { Icon(screen.icon, screen.label) },
+                    label = { Text(screen.label) },
+                    selected = currentRoute == screen.route,
+                    onClick = {
+                        navController.navigate(screen.route) {
+                            popUpTo(Screen.Rooms.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             }
         }
