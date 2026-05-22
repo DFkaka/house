@@ -39,9 +39,12 @@ fun HouseNavGraph(container: AppContainer) {
     Column(Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
-            startDestination = Screen.Rooms.route,
+            startDestination = "debug",
             modifier = Modifier.weight(1f)
         ) {
+            composable("debug") {
+                DebugScreen()
+            }
             composable(Screen.Rooms.route) {
                 RoomListScreen(
                     container = container,
