@@ -114,14 +114,17 @@ fun TenantListScreen(container: AppContainer) {
     // Edit Dialog
     if (editingTenant != null) {
         val t = editingTenant!!
+        val room = rooms.find { it.roomId == t.roomId }
+        val editWater = if (t.initialWaterReading > 0.0) t.initialWaterReading else (room?.waterMeterLast ?: 0.0)
+        val editElectric = if (t.initialElectricReading > 0.0) t.initialElectricReading else (room?.electricMeterLast ?: 0.0)
         TenantFormDialog(
             rooms = rooms,
             initialName = t.name,
             initialPhone = t.phone,
             initialRoomId = t.roomId,
-            initialWater = t.initialWaterReading,
-            initialElectric = t.initialElectricReading,
-            initialSyncToRoom = t.initialWaterReading > 0.0 || t.initialElectricReading > 0.0,
+            initialWater = editWater,
+            initialElectric = editElectric,
+            initialSyncToRoom = (t.initialWaterReading > 0.0 || t.initialElectricReading > 0.0) || (editWater > 0.0 || editElectric > 0.0),
             onDismiss = { editingTenant = null },
             onConfirm = { name, phone, roomId, initialWater, initialElectric, syncToRoom ->
                 scope.launch(Dispatchers.IO) {
@@ -173,15 +176,15 @@ fun TenantFormDialog(
     initialRoomId: Long? = null,
     initialWater: Double = 0.0,
     initialElectric: Double = 0.0,
-    initialSyncToRoom: Boolean = false,
+    initialSyncToRoom: Boolean = true,
     onDismiss: () -> Unit,
     onConfirm: (name: String, phone: String, roomId: Long, water: Double, electric: Double, syncToRoom: Boolean) -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
     var phone by remember { mutableStateOf(initialPhone) }
     var selRoomId by remember { mutableStateOf(initialRoomId) }
-    var waterStr by remember { mutableStateOf(if (initialWater == 0.0) "" else initialWater.toString()) }
-    var electricStr by remember { mutableStateOf(if (initialElectric == 0.0) "" else initialElectric.toString()) }
+    var waterStr by remember { mutableStateOf(initialWater.toString()) }
+    var electricStr by remember { mutableStateOf(initialElectric.toString()) }
     var syncToRoom by remember { mutableStateOf(initialSyncToRoom) }
     var expanded by remember { mutableStateOf(false) }
     val availableRooms = rooms.filter { it.status == "VACANT" || it.roomId == initialRoomId }
