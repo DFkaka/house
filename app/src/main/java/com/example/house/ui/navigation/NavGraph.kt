@@ -19,6 +19,7 @@ import com.example.house.ui.meter.MeterReadingScreen
 import com.example.house.ui.room.RoomDetailScreen
 import com.example.house.ui.room.RoomListScreen
 import com.example.house.ui.settlement.SettlementScreen
+import com.example.house.ui.settlement.SettlementQueryScreen
 import com.example.house.ui.statistics.StatisticsScreen
 import com.example.house.ui.tenant.TenantListScreen
 
@@ -41,7 +42,8 @@ fun HouseNavGraph(container: AppContainer) {
         NavHost(navController = navController, startDestination = Screen.Rooms.route, modifier = Modifier.weight(1f)) {
             composable(Screen.Rooms.route) { RoomListScreen(container = container, onRoomClick = { navController.navigate("room_detail/$it") }) }
             composable(Screen.Meter.route) { MeterReadingScreen(container) }
-            composable(Screen.Settlement.route) { SettlementScreen(container) }
+            composable(Screen.Settlement.route) { SettlementScreen(container, onQueryClick = { navController.navigate("settlement_query") }) }
+            composable("settlement_query") { SettlementQueryScreen(container, onBack = { navController.popBackStack() }) }
             composable(Screen.Tenants.route) { TenantListScreen(container) }
             composable(Screen.Stats.route) { StatisticsScreen(container) }
             composable("room_detail/{roomId}", arguments = listOf(navArgument("roomId") { type = NavType.LongType })) { entry ->

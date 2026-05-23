@@ -26,7 +26,7 @@ import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettlementScreen(container: AppContainer) {
+fun SettlementScreen(container: AppContainer, onQueryClick: () -> Unit = {}) {
     var rooms by remember { mutableStateOf<List<Room>>(emptyList()) }
     var selectedRoom by remember { mutableStateOf<Room?>(null) }
     var activeTenant by remember { mutableStateOf<Tenant?>(null) }
@@ -67,6 +67,22 @@ fun SettlementScreen(container: AppContainer) {
             val latest = container.meterReadingRepository.getLatest(id)
             waterReading = latest?.waterReading?.toString() ?: ""
             electricReading = latest?.electricReading?.toString() ?: ""
+            // 预填价格和模式：优先上次结算，否则默认值
+            prevSettlement?.let { ps ->
+                waterUnitPrice = ps.waterUnitPrice.toString()
+                electricUnitPrice = ps.electricUnitPrice.toString()
+                if (ps.waterFixedAmount != null) {
+                    waterMode = "FIXED"
+                    fixedWaterAmount = ps.waterFixedAmount.toString()
+                } else {
+                    waterMode = "BY_METER"
+                }
+            } ?: run {
+                waterMode = "BY_METER"
+                fixedWaterAmount = "30.00"
+                waterUnitPrice = "3.50"
+                electricUnitPrice = "0.65"
+            }
             showResult = false
         }
     }
@@ -96,7 +112,13 @@ fun SettlementScreen(container: AppContainer) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("水电结算", fontWeight = FontWeight.Bold) }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primary, titleContentColor = Color.White)) },
+        topBar = {
+            TopAppBar(
+                title = { Text("水电结算", fontWeight = FontWeight.Bold) },
+                actions = { IconButton(onClick = onQueryClick) { Icon(Icons.Default.Search, "结算查询", tint = Color.White) } },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primary, titleContentColor = Color.White)
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

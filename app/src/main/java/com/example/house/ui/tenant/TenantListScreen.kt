@@ -3,7 +3,6 @@ package com.example.house.ui.tenant
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -12,7 +11,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.house.data.local.model.Room
@@ -96,14 +94,11 @@ fun TenantListScreen(container: AppContainer) {
         TenantFormDialog(
             rooms = rooms,
             onDismiss = { showAddDialog = false },
-            onConfirm = { name, phone, roomId, initialWater, initialElectric, syncToRoom ->
+            onConfirm = { name, phone, roomId, initialWater, initialElectric ->
                 scope.launch(Dispatchers.IO) {
                     val newTenant = Tenant(name = name, phone = phone, roomId = roomId, checkInDate = LocalDate.now().toString(), initialWaterReading = initialWater, initialElectricReading = initialElectric)
                     val newId = container.tenantRepository.insert(newTenant)
                     container.roomRepository.updateTenantAndStatus(roomId, newId, "OCCUPIED")
-                    if (syncToRoom) {
-                        container.roomRepository.updateLastReadings(roomId, initialWater, initialElectric, LocalDate.now().toString(), 0.0, 0.0, 0.0)
-                    }
                     load()
                 }
                 showAddDialog = false
@@ -119,19 +114,13 @@ fun TenantListScreen(container: AppContainer) {
             initialName = t.name,
             initialPhone = t.phone,
             initialRoomId = t.roomId,
-            initialWater = t.initialWaterReading,
-            initialElectric = t.initialElectricReading,
-            initialSyncToRoom = t.initialWaterReading > 0.0 || t.initialElectricReading > 0.0,
             onDismiss = { editingTenant = null },
-            onConfirm = { name, phone, roomId, initialWater, initialElectric, syncToRoom ->
+            onConfirm = { name, phone, roomId, initialWater, initialElectric ->
                 scope.launch(Dispatchers.IO) {
                     val updated = t.copy(name = name, phone = phone, roomId = roomId, initialWaterReading = initialWater, initialElectricReading = initialElectric)
                     container.tenantRepository.update(updated)
                     if (updated.checkOutDate == null) {
                         container.roomRepository.updateTenantAndStatus(roomId, updated.tenantId, "OCCUPIED")
-                    }
-                    if (syncToRoom) {
-                        container.roomRepository.updateLastReadings(roomId, initialWater, initialElectric, updated.checkInDate, 0.0, 0.0, 0.0)
                     }
                     load()
                 }
@@ -173,16 +162,12 @@ fun TenantFormDialog(
     initialRoomId: Long? = null,
     initialWater: Double = 0.0,
     initialElectric: Double = 0.0,
-    initialSyncToRoom: Boolean = false,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, phone: String, roomId: Long, water: Double, electric: Double, syncToRoom: Boolean) -> Unit
+    onConfirm: (name: String, phone: String, roomId: Long, water: Double, electric: Double) -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
     var phone by remember { mutableStateOf(initialPhone) }
     var selRoomId by remember { mutableStateOf(initialRoomId) }
-    var waterStr by remember { mutableStateOf(initialWater.toString()) }
-    var electricStr by remember { mutableStateOf(initialElectric.toString()) }
-    var syncToRoom by remember { mutableStateOf(initialSyncToRoom) }
     var expanded by remember { mutableStateOf(false) }
     val availableRooms = rooms.filter { it.status == "VACANT" || it.roomId == initialRoomId }
 
@@ -201,38 +186,12 @@ fun TenantFormDialog(
                         availableRooms.forEach { r -> DropdownMenuItem(text = { Text("${r.roomCode} ${r.roomName}".trim()) }, onClick = { selRoomId = r.roomId; expanded = false }) }
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = syncToRoom, onCheckedChange = { syncToRoom = it })
-                    Text("同步初始水电到房间表", fontSize = 14.sp, color = Gray600)
-                }
-                Spacer(Modifier.height(4.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = waterStr,
-                        onValueChange = { waterStr = it },
-                        label = { Text("初始水表度数") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                    )
-                    OutlinedTextField(
-                        value = electricStr,
-                        onValueChange = { electricStr = it },
-                        label = { Text("初始电表度数") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                    )
-                }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                val w = waterStr.toDoubleOrNull() ?: 0.0
-                val e = electricStr.toDoubleOrNull() ?: 0.0
                 if (name.isNotBlank() && phone.isNotBlank() && selRoomId != null) {
-                    onConfirm(name, phone, selRoomId!!, w, e, syncToRoom)
+                    onConfirm(name, phone, selRoomId!!, 0.0, 0.0)
                 }
             }) { Text("确定") }
         },

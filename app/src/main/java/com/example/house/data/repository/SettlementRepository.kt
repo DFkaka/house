@@ -17,6 +17,21 @@ class SettlementRepository(context: Context) : BaseRepository(context) {
         return list
     }
 
+    fun query(roomId: Long?, startDate: String?, endDate: String?): List<Settlement> {
+        val list = mutableListOf<Settlement>()
+        val where = mutableListOf<String>()
+        val args = mutableListOf<String>()
+        roomId?.let { where.add("roomId=?"); args.add(it.toString()) }
+        startDate?.let { where.add("settleDate>=?"); args.add(it) }
+        endDate?.let { where.add("settleDate<=?"); args.add(it) }
+        val whereClause = if (where.isNotEmpty()) "WHERE " + where.joinToString(" AND ") else ""
+        db.rawQuery("SELECT * FROM settlements $whereClause ORDER BY settleDate DESC",
+            args.toTypedArray()).use { c ->
+            while (c.moveToNext()) list.add(mapSettlement(c))
+        }
+        return list
+    }
+
     fun getLatest(roomId: Long): Settlement? {
         db.rawQuery("SELECT * FROM settlements WHERE roomId=? ORDER BY settleDate DESC LIMIT 1",
             arrayOf(roomId.toString())).use { c ->
