@@ -84,11 +84,13 @@ fun MeterReadingScreen(container: AppContainer) {
                                     Text("电: ${r.electricReading}", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Orange600)
                                 }
                             }
-                            IconButton(onClick = { editingReading = r }) {
-                                Icon(Icons.Default.Edit, "编辑", tint = Gray600, modifier = Modifier.size(20.dp))
-                            }
-                            IconButton(onClick = { deletingReading = r }) {
-                                Icon(Icons.Default.Delete, "删除", tint = Red600, modifier = Modifier.size(20.dp))
+                            Row {
+                                IconButton(onClick = { editingReading = r }) {
+                                    Icon(Icons.Default.Edit, "编辑", tint = Blue600, modifier = Modifier.size(20.dp))
+                                }
+                                IconButton(onClick = { deletingReading = r }) {
+                                    Icon(Icons.Default.Delete, "删除", tint = Red600, modifier = Modifier.size(20.dp))
+                                }
                             }
                         }
                     }
@@ -99,13 +101,17 @@ fun MeterReadingScreen(container: AppContainer) {
 
     // Add dialog
     if (showAddDialog) {
+        val addRoomId = selectedRoomId
+        val prevRoom = addRoomId?.let { rooms.find { r -> r.roomId == it } }
         AddEditDialog(
             rooms = rooms,
             title = "新增抄表",
-            initialRoomId = null,
-            initialDate = java.time.LocalDate.now().toString(),
+            initialRoomId = addRoomId,
+            initialDate = "",
             initialWater = "",
             initialElectric = "",
+            previousWater = prevRoom?.waterMeterLast,
+            previousElectric = prevRoom?.electricMeterLast,
             onDismiss = { showAddDialog = false },
             onConfirm = { roomId, date, water, electric ->
                 scope.launch(Dispatchers.IO) {
@@ -121,6 +127,14 @@ fun MeterReadingScreen(container: AppContainer) {
 
     // Edit dialog
     editingReading?.let { reading ->
+        val prevReadings = readings
+            .filter { it.roomId == reading.roomId && it.recordId != reading.recordId }
+            .sortedByDescending { it.recordDate }
+        val prevWater = prevReadings.firstOrNull()?.waterReading
+            ?: rooms.find { it.roomId == reading.roomId }?.waterMeterLast
+        val prevElectric = prevReadings.firstOrNull()?.electricReading
+            ?: rooms.find { it.roomId == reading.roomId }?.electricMeterLast
+
         AddEditDialog(
             rooms = rooms,
             title = "编辑抄表",
@@ -128,6 +142,8 @@ fun MeterReadingScreen(container: AppContainer) {
             initialDate = reading.recordDate,
             initialWater = reading.waterReading.toString(),
             initialElectric = reading.electricReading.toString(),
+            previousWater = prevWater,
+            previousElectric = prevElectric,
             onDismiss = { editingReading = null },
             onConfirm = { roomId, date, water, electric ->
                 scope.launch(Dispatchers.IO) {
@@ -170,6 +186,8 @@ fun AddEditDialog(
     initialDate: String,
     initialWater: String,
     initialElectric: String,
+    previousWater: Double? = null,
+    previousElectric: Double? = null,
     onDismiss: () -> Unit,
     onConfirm: (roomId: Long, date: String, water: Double, electric: Double) -> Unit
 ) {
@@ -178,6 +196,61 @@ fun AddEditDialog(
     var water by remember { mutableStateOf(initialWater) }
     var electric by remember { mutableStateOf(initialElectric) }
     var expanded by remember { mutableStateOf(false) }
+    var showLowWarning by remember { mutableStateOf(false) }
+
+    fun doSave() {
+        val w = water.toDoubleOrNull() ?: return
+        val e = electric.toDoubleOrNull() ?: return
+        val id = selRoomId ?: return
+        if (date.isBlank()) return
+        onConfirm(id, date, w, e)
+    }
+
+    fun checkAndSave() {
+        val w = water.toDoubleOrNull()
+        val e = electric.toDoubleOrNull()
+        val pw = previousWater
+        val pe = previousElectric
+        if ((pw != null && w != null && w < pw) || (pe != null && e != null && e < pe)) {
+            showLowWarning = true
+        } else {
+            doSave()
+        }
+    }
+
+    // 读数过低警告弹窗
+    if (showLowWarning) {
+        AlertDialog(
+            onDismissRequest = { showLowWarning = false },
+            title = { Text("读表数是否正确？") },
+            text = {
+                Column {
+                    Text("当前输入的读表数小于上次读数：")
+                    Spacer(Modifier.height(4.dp))
+                    previousWater?.let { pw ->
+                        val w = water.toDoubleOrNull()
+                        if (w != null && w < pw) {
+                            Text("· 水表: 上次 $pw → 本次 $w")
+                        }
+                    }
+                    previousElectric?.let { pe ->
+                        val e = electric.toDoubleOrNull()
+                        if (e != null && e < pe) {
+                            Text("· 电表: 上次 $pe → 本次 $e")
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text("如因换新表导致读数归零，请忽略此提示。", color = Gray400, fontSize = 13.sp)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLowWarning = false; doSave() }) {
+                    Text("确认保存", color = Orange600)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showLowWarning = false }) { Text("返回修改") } }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -206,16 +279,26 @@ fun AddEditDialog(
                 OutlinedTextField(water, { water = it }, label = { Text("水表读数") }, singleLine = true)
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(electric, { electric = it }, label = { Text("电表读数") }, singleLine = true)
+
+                // 上次读数参考
+                if (previousWater != null || previousElectric != null) {
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider(color = Gray200)
+                    Spacer(Modifier.height(8.dp))
+                    Text("上次抄表读数", fontSize = 12.sp, color = Gray400, fontWeight = FontWeight.Medium)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        previousWater?.let {
+                            Text("水表: $it", fontSize = 13.sp, color = Gray600)
+                        }
+                        previousElectric?.let {
+                            Text("电表: $it", fontSize = 13.sp, color = Gray600)
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                val w = water.toDoubleOrNull() ?: return@TextButton
-                val e = electric.toDoubleOrNull() ?: return@TextButton
-                val id = selRoomId ?: return@TextButton
-                if (date.isBlank()) return@TextButton
-                onConfirm(id, date, w, e)
-            }) { Text("保存") }
+            TextButton(onClick = { checkAndSave() }) { Text("保存") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
     )
