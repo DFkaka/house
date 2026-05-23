@@ -3,6 +3,7 @@ package com.example.house.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+val Blue600 = Color(0xFF1E88E5)
 val Blue700 = Color(0xFF2E74B5)
 val Blue800 = Color(0xFF1F4D78)
 val Blue50 = Color(0xFFE8F0FE)

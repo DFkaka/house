@@ -1,4 +1,11 @@
-package com.example.house.ui.tenant
+path = r"D:\codex-app\house\app\src\main\java\com\example\house\ui\tenant\TenantListScreen.kt"
+with open(path, "r", encoding="utf-8") as f:
+    c = f.read()
+
+# Find and replace the old add dialog logic + checkout button with full edit/delete version
+# We'll replace from "@Composable" to end with the new version
+
+new_content = '''package com.example.house.ui.tenant
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -229,3 +236,8 @@ fun TenantFormDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
     )
 }
+'''
+
+with open(path, "w", encoding="utf-8") as f:
+    f.write(new_content)
+print("done")

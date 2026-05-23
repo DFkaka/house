@@ -1,4 +1,3 @@
-
 package com.example.house.data.local.model
 
 data class Tenant(
@@ -9,5 +8,7 @@ data class Tenant(
     val roomId: Long,
     val checkInDate: String,
     val checkOutDate: String? = null,
+    val initialWaterReading: Double = 0.0,
+    val initialElectricReading: Double = 0.0,
     val notes: String? = null
 )

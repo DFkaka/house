@@ -10,7 +10,7 @@ class DatabaseHelper private constructor(context: Context) :
 
     companion object {
         private const val DB_NAME = "house.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
 
         @Volatile
         private var instance: DatabaseHelper? = null
@@ -49,6 +49,8 @@ class DatabaseHelper private constructor(context: Context) :
                 roomId INTEGER NOT NULL,
                 checkInDate TEXT NOT NULL,
                 checkOutDate TEXT,
+                initialWaterReading REAL DEFAULT 0,
+                initialElectricReading REAL DEFAULT 0,
                 notes TEXT
             )
         """)
@@ -101,6 +103,9 @@ class DatabaseHelper private constructor(context: Context) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Handle future migrations
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE tenants ADD COLUMN initialWaterReading REAL DEFAULT 0")
+            db.execSQL("ALTER TABLE tenants ADD COLUMN initialElectricReading REAL DEFAULT 0")
+        }
     }
 }

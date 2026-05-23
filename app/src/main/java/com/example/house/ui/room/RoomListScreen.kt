@@ -104,6 +104,10 @@ fun RoomListScreen(container: AppContainer, onRoomClick: (Long) -> Unit) {
                                     Column { Text("电费", color = Gray400, fontSize = 11.sp); Text("￥${fmt.format(room.lastElectricFee)}", color = Orange600, fontWeight = FontWeight.Medium, fontSize = 15.sp) }
                                     Column { Text("合计", color = Gray400, fontSize = 11.sp); Text("￥${fmt.format(room.lastTotalFee)}", color = Red600, fontWeight = FontWeight.Bold, fontSize = 15.sp) }
                                 }
+                                if (room.lastSettleDate != null) {
+                                    Spacer(Modifier.height(6.dp))
+                                    Text("最后结算: ${room.lastSettleDate}", color = Gray400, fontSize = 11.sp)
+                                }
                             }
                         }
                     }

@@ -38,8 +38,18 @@ class TenantViewModel(
     fun addTenant(tenant: Tenant, onResult: (Boolean) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                tenantRepo.insert(tenant)
-                roomRepo.updateTenantAndStatus(tenant.roomId, tenant.tenantId, "OCCUPIED")
+                val newId = tenantRepo.insert(tenant)
+                val savedTenant = tenant.copy(tenantId = newId)
+                roomRepo.updateTenantAndStatus(tenant.roomId, savedTenant.tenantId, "OCCUPIED")
+                roomRepo.updateLastReadings(
+                    roomId = tenant.roomId,
+                    water = tenant.initialWaterReading,
+                    electric = tenant.initialElectricReading,
+                    date = tenant.checkInDate,
+                    wFee = 0.0,
+                    eFee = 0.0,
+                    total = 0.0
+                )
                 loadTenants()
                 onResult(true)
             } catch (e: Exception) {
@@ -53,6 +63,43 @@ class TenantViewModel(
             try {
                 tenantRepo.checkout(tenant.tenantId, checkoutDate)
                 roomRepo.updateTenantAndStatus(tenant.roomId, null, "VACANT")
+                loadTenants()
+                onResult(true)
+            } catch (e: Exception) {
+                onResult(false)
+            }
+        }
+    }
+
+    fun updateTenant(tenant: Tenant, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                tenantRepo.update(tenant)
+                roomRepo.updateTenantAndStatus(tenant.roomId, tenant.tenantId, "OCCUPIED")
+                roomRepo.updateLastReadings(
+                    roomId = tenant.roomId,
+                    water = tenant.initialWaterReading,
+                    electric = tenant.initialElectricReading,
+                    date = tenant.checkInDate,
+                    wFee = 0.0,
+                    eFee = 0.0,
+                    total = 0.0
+                )
+                loadTenants()
+                onResult(true)
+            } catch (e: Exception) {
+                onResult(false)
+            }
+        }
+    }
+
+    fun deleteTenant(tenant: Tenant, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                tenantRepo.delete(tenant.tenantId)
+                if (tenant.checkOutDate == null) {
+                    roomRepo.updateTenantAndStatus(tenant.roomId, null, "VACANT")
+                }
                 loadTenants()
                 onResult(true)
             } catch (e: Exception) {

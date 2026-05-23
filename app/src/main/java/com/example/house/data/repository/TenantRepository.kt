@@ -55,6 +55,8 @@ class TenantRepository(context: Context) : BaseRepository(context) {
             tenant.idCard?.let { put("idCard", it) }
             put("roomId", tenant.roomId)
             put("checkInDate", tenant.checkInDate)
+            put("initialWaterReading", tenant.initialWaterReading)
+            put("initialElectricReading", tenant.initialElectricReading)
         }
         return db.insert("tenants", null, cv)
     }
@@ -62,6 +64,25 @@ class TenantRepository(context: Context) : BaseRepository(context) {
     fun checkout(tenantId: Long, date: String) {
         val cv = ContentValues().apply { put("checkOutDate", date) }
         db.update("tenants", cv, "tenantId=?", arrayOf(tenantId.toString()))
+    }
+
+    fun update(tenant: Tenant) {
+        val cv = ContentValues().apply {
+            put("name", tenant.name)
+            put("phone", tenant.phone)
+            tenant.idCard?.let { put("idCard", it) }
+            put("roomId", tenant.roomId)
+            put("checkInDate", tenant.checkInDate)
+            tenant.checkOutDate?.let { put("checkOutDate", it) }
+            put("initialWaterReading", tenant.initialWaterReading)
+            put("initialElectricReading", tenant.initialElectricReading)
+            tenant.notes?.let { put("notes", it) }
+        }
+        db.update("tenants", cv, "tenantId=?", arrayOf(tenant.tenantId.toString()))
+    }
+
+    fun delete(tenantId: Long) {
+        db.delete("tenants", "tenantId=?", arrayOf(tenantId.toString()))
     }
 
     private fun mapTenant(c: android.database.Cursor): Tenant = Tenant(
@@ -72,6 +93,8 @@ class TenantRepository(context: Context) : BaseRepository(context) {
         roomId = c.getLong("roomId"),
         checkInDate = c.getString("checkInDate") ?: "",
         checkOutDate = c.getString("checkOutDate"),
+        initialWaterReading = c.getDouble("initialWaterReading"),
+        initialElectricReading = c.getDouble("initialElectricReading"),
         notes = c.getString("notes")
     )
 }
