@@ -35,21 +35,23 @@ class TenantViewModel(
         }
     }
 
-    fun addTenant(tenant: Tenant, onResult: (Boolean) -> Unit) {
+    fun addTenant(tenant: Tenant, syncToRoom: Boolean = false, onResult: (Boolean) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val newId = tenantRepo.insert(tenant)
                 val savedTenant = tenant.copy(tenantId = newId)
                 roomRepo.updateTenantAndStatus(tenant.roomId, savedTenant.tenantId, "OCCUPIED")
-                roomRepo.updateLastReadings(
-                    roomId = tenant.roomId,
-                    water = tenant.initialWaterReading,
-                    electric = tenant.initialElectricReading,
-                    date = tenant.checkInDate,
-                    wFee = 0.0,
-                    eFee = 0.0,
-                    total = 0.0
-                )
+                if (syncToRoom && (tenant.initialWaterReading > 0.0 || tenant.initialElectricReading > 0.0)) {
+                    roomRepo.updateLastReadings(
+                        roomId = tenant.roomId,
+                        water = tenant.initialWaterReading,
+                        electric = tenant.initialElectricReading,
+                        date = tenant.checkInDate,
+                        wFee = 0.0,
+                        eFee = 0.0,
+                        total = 0.0
+                    )
+                }
                 loadTenants()
                 onResult(true)
             } catch (e: Exception) {
@@ -71,20 +73,22 @@ class TenantViewModel(
         }
     }
 
-    fun updateTenant(tenant: Tenant, onResult: (Boolean) -> Unit) {
+    fun updateTenant(tenant: Tenant, syncToRoom: Boolean = false, onResult: (Boolean) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 tenantRepo.update(tenant)
                 roomRepo.updateTenantAndStatus(tenant.roomId, tenant.tenantId, "OCCUPIED")
-                roomRepo.updateLastReadings(
-                    roomId = tenant.roomId,
-                    water = tenant.initialWaterReading,
-                    electric = tenant.initialElectricReading,
-                    date = tenant.checkInDate,
-                    wFee = 0.0,
-                    eFee = 0.0,
-                    total = 0.0
-                )
+                if (syncToRoom && (tenant.initialWaterReading > 0.0 || tenant.initialElectricReading > 0.0)) {
+                    roomRepo.updateLastReadings(
+                        roomId = tenant.roomId,
+                        water = tenant.initialWaterReading,
+                        electric = tenant.initialElectricReading,
+                        date = tenant.checkInDate,
+                        wFee = 0.0,
+                        eFee = 0.0,
+                        total = 0.0
+                    )
+                }
                 loadTenants()
                 onResult(true)
             } catch (e: Exception) {
