@@ -114,17 +114,14 @@ fun TenantListScreen(container: AppContainer) {
     // Edit Dialog
     if (editingTenant != null) {
         val t = editingTenant!!
-        val room = rooms.find { it.roomId == t.roomId }
-        val editWater = if (t.initialWaterReading > 0.0) t.initialWaterReading else (room?.waterMeterLast ?: 0.0)
-        val editElectric = if (t.initialElectricReading > 0.0) t.initialElectricReading else (room?.electricMeterLast ?: 0.0)
         TenantFormDialog(
             rooms = rooms,
             initialName = t.name,
             initialPhone = t.phone,
             initialRoomId = t.roomId,
-            initialWater = editWater,
-            initialElectric = editElectric,
-            initialSyncToRoom = (t.initialWaterReading > 0.0 || t.initialElectricReading > 0.0) || (editWater > 0.0 || editElectric > 0.0),
+            initialWater = t.initialWaterReading,
+            initialElectric = t.initialElectricReading,
+            initialSyncToRoom = t.initialWaterReading > 0.0 || t.initialElectricReading > 0.0,
             onDismiss = { editingTenant = null },
             onConfirm = { name, phone, roomId, initialWater, initialElectric, syncToRoom ->
                 scope.launch(Dispatchers.IO) {
@@ -176,7 +173,7 @@ fun TenantFormDialog(
     initialRoomId: Long? = null,
     initialWater: Double = 0.0,
     initialElectric: Double = 0.0,
-    initialSyncToRoom: Boolean = true,
+    initialSyncToRoom: Boolean = false,
     onDismiss: () -> Unit,
     onConfirm: (name: String, phone: String, roomId: Long, water: Double, electric: Double, syncToRoom: Boolean) -> Unit
 ) {
