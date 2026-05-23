@@ -41,7 +41,7 @@ class TenantViewModel(
                 val newId = tenantRepo.insert(tenant)
                 val savedTenant = tenant.copy(tenantId = newId)
                 roomRepo.updateTenantAndStatus(tenant.roomId, savedTenant.tenantId, "OCCUPIED")
-                if (syncToRoom && (tenant.initialWaterReading > 0.0 || tenant.initialElectricReading > 0.0)) {
+                if (syncToRoom) {
                     roomRepo.updateLastReadings(
                         roomId = tenant.roomId,
                         water = tenant.initialWaterReading,
@@ -78,7 +78,7 @@ class TenantViewModel(
             try {
                 tenantRepo.update(tenant)
                 roomRepo.updateTenantAndStatus(tenant.roomId, tenant.tenantId, "OCCUPIED")
-                if (syncToRoom && (tenant.initialWaterReading > 0.0 || tenant.initialElectricReading > 0.0)) {
+                if (syncToRoom) {
                     roomRepo.updateLastReadings(
                         roomId = tenant.roomId,
                         water = tenant.initialWaterReading,

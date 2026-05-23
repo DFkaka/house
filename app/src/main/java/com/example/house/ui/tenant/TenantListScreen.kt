@@ -101,7 +101,7 @@ fun TenantListScreen(container: AppContainer) {
                     val newTenant = Tenant(name = name, phone = phone, roomId = roomId, checkInDate = LocalDate.now().toString(), initialWaterReading = initialWater, initialElectricReading = initialElectric)
                     val newId = container.tenantRepository.insert(newTenant)
                     container.roomRepository.updateTenantAndStatus(roomId, newId, "OCCUPIED")
-                    if (syncToRoom && (initialWater > 0.0 || initialElectric > 0.0)) {
+                    if (syncToRoom) {
                         container.roomRepository.updateLastReadings(roomId, initialWater, initialElectric, LocalDate.now().toString(), 0.0, 0.0, 0.0)
                     }
                     load()
@@ -130,7 +130,7 @@ fun TenantListScreen(container: AppContainer) {
                     if (updated.checkOutDate == null) {
                         container.roomRepository.updateTenantAndStatus(roomId, updated.tenantId, "OCCUPIED")
                     }
-                    if (syncToRoom && (initialWater > 0.0 || initialElectric > 0.0)) {
+                    if (syncToRoom) {
                         container.roomRepository.updateLastReadings(roomId, initialWater, initialElectric, updated.checkInDate, 0.0, 0.0, 0.0)
                     }
                     load()
