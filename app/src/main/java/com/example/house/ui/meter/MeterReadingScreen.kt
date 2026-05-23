@@ -1,4 +1,3 @@
-
 package com.example.house.ui.meter
 
 import androidx.compose.foundation.layout.*
@@ -20,8 +19,6 @@ import com.example.house.di.AppContainer
 import com.example.house.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +28,12 @@ fun MeterReadingScreen(container: AppContainer) {
     var selectedRoomId by remember { mutableStateOf<Long?>(null) }
     var loading by remember { mutableStateOf(true) }
     var showAddDialog by remember { mutableStateOf(false) }
+
+    // Edit state
+    var editingReading by remember { mutableStateOf<MeterReading?>(null) }
+    // Delete confirm
+    var deletingReading by remember { mutableStateOf<MeterReading?>(null) }
+
     val scope = rememberCoroutineScope()
 
     fun load() {
@@ -62,11 +65,31 @@ fun MeterReadingScreen(container: AppContainer) {
             }
             if (loading) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             else LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(readings) { r ->
+                items(readings, key = { it.recordId }) { r ->
                     Card(Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-                        Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Column { Text(rooms.find { it.roomId == r.roomId }?.roomCode ?: "", fontWeight = FontWeight.Bold); Text(r.recordDate, color = Gray400, fontSize = 12.sp) }
-                            Column { Text("水: ${r.waterReading}", fontSize = 14.sp, fontWeight = FontWeight.Medium); Text("电: ${r.electricReading}", fontSize = 14.sp, fontWeight = FontWeight.Medium) }
+                        Row(
+                            Modifier.fillMaxWidth().padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(rooms.find { it.roomId == r.roomId }?.roomCode ?: "", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(r.recordDate, color = Gray400, fontSize = 12.sp)
+                                }
+                                Spacer(Modifier.height(2.dp))
+                                Row {
+                                    Text("水: ${r.waterReading}  ", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Blue700)
+                                    Text("电: ${r.electricReading}", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Orange600)
+                                }
+                            }
+                            IconButton(onClick = { editingReading = r }) {
+                                Icon(Icons.Default.Edit, "编辑", tint = Gray600, modifier = Modifier.size(20.dp))
+                            }
+                            IconButton(onClick = { deletingReading = r }) {
+                                Icon(Icons.Default.Delete, "删除", tint = Red600, modifier = Modifier.size(20.dp))
+                            }
                         }
                     }
                 }
@@ -74,30 +97,126 @@ fun MeterReadingScreen(container: AppContainer) {
         }
     }
 
+    // Add dialog
     if (showAddDialog) {
-        var selRoomId by remember { mutableStateOf<Long?>(null) }; var water by remember { mutableStateOf("") }; var electric by remember { mutableStateOf("") }
-        var expanded by remember { mutableStateOf(false) }
-        AlertDialog(onDismissRequest = { showAddDialog = false }, title = { Text("新增抄表") },
-            text = {
-                Column {
-                    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-                        OutlinedTextField(value = rooms.find { it.roomId == selRoomId }?.roomCode ?: "选择房间", onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth().menuAnchor(), label = { Text("房间") })
-                        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) { rooms.forEach { r -> DropdownMenuItem(text = { Text(r.roomCode) }, onClick = { selRoomId = r.roomId; expanded = false }) } }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(water, { water = it }, label = { Text("水表读数") }, singleLine = true)
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(electric, { electric = it }, label = { Text("电表读数") }, singleLine = true)
-                }
-            },
-            confirmButton = { TextButton(onClick = {
-                val w = water.toDoubleOrNull(); val e = electric.toDoubleOrNull(); val id = selRoomId
-                if (w != null && e != null && id != null) scope.launch(Dispatchers.IO) {
-                    container.meterReadingRepository.insert(MeterReading(roomId = id, recordDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE), waterReading = w, electricReading = e))
+        AddEditDialog(
+            rooms = rooms,
+            title = "新增抄表",
+            initialRoomId = null,
+            initialDate = java.time.LocalDate.now().toString(),
+            initialWater = "",
+            initialElectric = "",
+            onDismiss = { showAddDialog = false },
+            onConfirm = { roomId, date, water, electric ->
+                scope.launch(Dispatchers.IO) {
+                    container.meterReadingRepository.insert(
+                        MeterReading(roomId = roomId, recordDate = date, waterReading = water, electricReading = electric)
+                    )
                     load()
                 }
                 showAddDialog = false
-            }) { Text("保存") } },
-            dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("取消") } })
+            }
+        )
     }
+
+    // Edit dialog
+    editingReading?.let { reading ->
+        AddEditDialog(
+            rooms = rooms,
+            title = "编辑抄表",
+            initialRoomId = reading.roomId,
+            initialDate = reading.recordDate,
+            initialWater = reading.waterReading.toString(),
+            initialElectric = reading.electricReading.toString(),
+            onDismiss = { editingReading = null },
+            onConfirm = { roomId, date, water, electric ->
+                scope.launch(Dispatchers.IO) {
+                    container.meterReadingRepository.update(
+                        reading.copy(roomId = roomId, recordDate = date, waterReading = water, electricReading = electric)
+                    )
+                    load()
+                }
+                editingReading = null
+            }
+        )
+    }
+
+    // Delete confirm dialog
+    deletingReading?.let { reading ->
+        AlertDialog(
+            onDismissRequest = { deletingReading = null },
+            title = { Text("确认删除") },
+            text = { Text("删除 ${rooms.find { it.roomId == reading.roomId }?.roomCode ?: ""} 的 ${reading.recordDate} 抄表记录？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch(Dispatchers.IO) {
+                        container.meterReadingRepository.delete(reading.recordId)
+                        load()
+                    }
+                    deletingReading = null
+                }) { Text("删除", color = Red600) }
+            },
+            dismissButton = { TextButton(onClick = { deletingReading = null }) { Text("取消") } }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddEditDialog(
+    rooms: List<Room>,
+    title: String,
+    initialRoomId: Long?,
+    initialDate: String,
+    initialWater: String,
+    initialElectric: String,
+    onDismiss: () -> Unit,
+    onConfirm: (roomId: Long, date: String, water: Double, electric: Double) -> Unit
+) {
+    var selRoomId by remember { mutableStateOf(initialRoomId) }
+    var date by remember { mutableStateOf(initialDate) }
+    var water by remember { mutableStateOf(initialWater) }
+    var electric by remember { mutableStateOf(initialElectric) }
+    var expanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+                    OutlinedTextField(
+                        value = rooms.find { it.roomId == selRoomId }?.roomCode ?: "选择房间",
+                        onValueChange = {}, readOnly = true,
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        label = { Text("房间") }
+                    )
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        rooms.forEach { r ->
+                            DropdownMenuItem(
+                                text = { Text("${r.roomCode} ${r.roomName}".trim()) },
+                                onClick = { selRoomId = r.roomId; expanded = false }
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(date, { date = it }, label = { Text("抄表日期") }, singleLine = true, placeholder = { Text("yyyy-MM-dd") })
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(water, { water = it }, label = { Text("水表读数") }, singleLine = true)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(electric, { electric = it }, label = { Text("电表读数") }, singleLine = true)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val w = water.toDoubleOrNull() ?: return@TextButton
+                val e = electric.toDoubleOrNull() ?: return@TextButton
+                val id = selRoomId ?: return@TextButton
+                if (date.isBlank()) return@TextButton
+                onConfirm(id, date, w, e)
+            }) { Text("保存") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
 }

@@ -43,6 +43,21 @@ class MeterReadingRepository(context: Context) : BaseRepository(context) {
         return db.insert("meter_readings", null, cv)
     }
 
+    fun update(reading: MeterReading) {
+        val cv = ContentValues().apply {
+            put("roomId", reading.roomId)
+            put("recordDate", reading.recordDate)
+            put("waterReading", reading.waterReading)
+            put("electricReading", reading.electricReading)
+            reading.createdBy?.let { put("createdBy", it) }
+        }
+        db.update("meter_readings", cv, "recordId=?", arrayOf(reading.recordId.toString()))
+    }
+
+    fun delete(recordId: Long) {
+        db.delete("meter_readings", "recordId=?", arrayOf(recordId.toString()))
+    }
+
     private fun mapReading(c: android.database.Cursor): MeterReading = MeterReading(
         recordId = c.getLong("recordId"),
         roomId = c.getLong("roomId"),
